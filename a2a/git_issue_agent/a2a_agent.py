@@ -31,7 +31,7 @@ from git_issue_agent.event import Event
 from git_issue_agent.main import GitIssueAgent
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=settings.LOG_LEVEL, stream=sys.stdout, format='%(levelname)s: %(message)s')
 
 class BearerAuthBackend(AuthenticationBackend):
     """ Very temporary demo to grab auth token and print it"""
@@ -158,7 +158,10 @@ class GithubExecutor(AgentExecutor):
         Returns:
             None
         """
-        user_token = context.call_context.user._user.access_token
+        if settings.JWKS_URI:
+            user_token = context.call_context.user._user.access_token
+        else:
+            user_token = settings.GITHUB_TOKEN
         user_input = [context.get_user_input()]
         task = context.current_task
         if not task:
@@ -240,6 +243,6 @@ def run():
     app = server.build()  # this returns a Starlette app
     if not settings.JWKS_URI is None:
         logging.info("JWKS_URI is set - using JWT Validation middleware")
-        app.add_middleware(AuthenticationMiddleware, backend=BearerAuthBackend(), on_error=on_auth_error)
+    app.add_middleware(AuthenticationMiddleware, backend=BearerAuthBackend(), on_error=on_auth_error)
 
     uvicorn.run(app, host="0.0.0.0", port=settings.SERVICE_PORT)
