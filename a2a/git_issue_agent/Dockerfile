@@ -6,6 +6,7 @@ COPY . .
 RUN uv sync --no-cache --locked --link-mode copy
 
 ENV PRODUCTION_MODE=True \
+    HOME=/app \
     RELEASE_VERSION=${RELEASE_VERSION}
 
 RUN chown -R 1001:1001 /app
