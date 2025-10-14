@@ -203,7 +203,8 @@ class GithubExecutor(AgentExecutor):
                     issue_tools = [
                         tool
                         for tool in mcp_tools
-                        if "issue" in tool.name.lower() and ("search" in tool.name.lower() or "list" in tool.name.lower())
+                        if ("issue" in tool.name.lower() or "label" in tool.name.lower()) and 
+                        ("search" in tool.name.lower() or "list" in tool.name.lower())
                     ]
 
                     if not issue_tools:

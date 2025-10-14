@@ -9,7 +9,7 @@ class GitAgents():
         self.llm = CrewLLM(config)
 
         ###################
-        # Pre-requisitie validator
+        # Pre-requisite validator
         # ##################
         self.prereq_identifier = Agent(
             role="Pre-requisite Extractor",
@@ -21,15 +21,12 @@ class GitAgents():
 
         self.prereq_identifier_task = Task(
             description=(
-                "User query: {request}, \
-                Identified repository: {repo} \
-                Identified owner: {owner} \
-                Identified issue numbers: {issues}"
+                "User query: {request}"
             ),
             agent=self.prereq_identifier,
             output_pydantic=IssueSearchInfo,
             expected_output=(
-                "A structured extraction of the relevant Github artifacts"
+                "A pydantic object representing the extracted relevant information."
             ),
         )
 
@@ -54,7 +51,7 @@ class GitAgents():
             verbose=True,
             llm=self.llm.llm,
             inject_date=True,
-            max_iter=3
+            max_iter=6
         )
             
         # --- A generic task template -------------------------------------------------
@@ -62,11 +59,14 @@ class GitAgents():
         self.issue_query_task = Task(
             description=(
                 "Retrieve Github issues using tool calls in order to answer the user's query.\n"
-                "User query: {request}"
+                "User query: {request}\n"
+                "Identified repository: {repo} \n"
+                "Identified owner: {owner} \n"
+                "Identified issue numbers: {issues}"
             ),
             agent=self.issue_researcher,
             expected_output=(
-                "A direct answer to the user's query, citing the output of the tool to support your answer. Provide as many details as possible to support your claim."
+                "A well formatted, detailed report, directly answering the user's query, citing the output of the tool to support your answer."
             ),
         )
 
