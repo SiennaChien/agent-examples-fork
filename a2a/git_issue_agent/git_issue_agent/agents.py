@@ -1,8 +1,8 @@
 from crewai import Agent, Crew, Process, Task
 from git_issue_agent.config import Settings
-from git_issue_agent.data_types import UserQueryJudgement
+from git_issue_agent.data_types import IssueSearchInfo
 from git_issue_agent.llm import CrewLLM
-from git_issue_agent.prompts import REPO_ID_BACKSTORY, TOOL_CALL_PROMPT
+from git_issue_agent.prompts import TOOL_CALL_PROMPT, INFO_PARSER_PROMPT
 class GitAgents():
     
     def __init__(self, config: Settings, issue_tools):
@@ -12,21 +12,24 @@ class GitAgents():
         # Pre-requisitie validator
         # ##################
         self.prereq_identifier = Agent(
-            role="Pre-requisite Judge",
-            goal="To determine whether a user has supplied enough information to find Github issues.",
-            backstory=REPO_ID_BACKSTORY,
+            role="Pre-requisite Extractor",
+            goal="To extract the information about github artifacts that a user is looking for",
+            backstory=INFO_PARSER_PROMPT,
             verbose=True,
             llm=self.llm.llm
         )
 
         self.prereq_identifier_task = Task(
             description=(
-                "User query: {request}"
+                "User query: {request}, \
+                Identified repository: {repo} \
+                Identified owner: {owner} \
+                Identified issue numbers: {issues}"
             ),
             agent=self.prereq_identifier,
-            output_pydantic=UserQueryJudgement,
+            output_pydantic=IssueSearchInfo,
             expected_output=(
-                "A judgement on whether a request from a user successfully identifies an organization or user that owns issues."
+                "A structured extraction of the relevant Github artifacts"
             ),
         )
 
