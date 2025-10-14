@@ -29,14 +29,29 @@ class GitIssueAgent:
             await self.eventer.emit_event(message, final)
         else:
             logger.warning("No event handler registered")
+    
+    def extract_user_input(self, body):
+        content = body[-1]["content"]
+        latest_content = ""
 
-    async def execute(self, query):
+        if isinstance(content, str):
+            latest_content = content
+        else:
+            for item in content:
+                if item["type"] == "text":
+                    latest_content += item["text"]
+                else:
+                    self.logger.warning(f"Ignoring content with type {item['type']}")
 
+        return latest_content
+
+    async def execute(self, user_input):
+        query = self.extract_user_input(user_input)
         await self._send_event("🧐 Evaluating requirements...")
         await self.agents.prereq_id_crew.kickoff_async(inputs={"request": query})
         repo_id_task_output = self.agents.prereq_identifier_task.output.pydantic
         
-        if not repo_id_task_output.is_owner_and_repo_identified:
+        if not repo_id_task_output.has_sufficient_information:
             return repo_id_task_output.explanation
 
         await self._send_event("🔎 Searching for issues...")

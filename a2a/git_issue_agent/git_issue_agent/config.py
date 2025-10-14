@@ -12,11 +12,11 @@ class Settings(BaseSettings):
         description="Application log level",       
     )
     TASK_MODEL_ID: str = Field(
-        os.getenv("TASK_MODEL_ID", "granite3.3:8b"),
+        os.getenv("TASK_MODEL_ID", "ollama/ibm/granite4:latest"),
         description="The ID of the task model",
     )
     LLM_API_BASE: str = Field(
-        os.getenv("LLM_API_BASE", "http://localhost:11434/v1"),
+        os.getenv("LLM_API_BASE", "http://host.docker.internal:11434"),
         description="The URL for OpenAI API",
     )
     LLM_API_KEY: str = Field(os.getenv("LLM_API_KEY", "my_api_key"), description="The key for OpenAI API")
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         ge=0,
     )
     MCP_URL: str = Field(os.getenv("MCP_URL", "https://api.githubcopilot.com/mcp/"), description="Endpoint for an option MCP server")
-    SERVICE_PORT: int = Field(os.getenv("SERVICE_URL", 8000), description="Port on which the service will run.")
+    SERVICE_PORT: int = Field(os.getenv("SERVICE_PORT", 8000), description="Port on which the service will run.")
     GITHUB_TOKEN: str = Field(os.getenv("GITHUB_TOKEN", None), description="If not using agent with authorization, the default Github token to use")
 
     # auth variables for token validation

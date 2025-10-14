@@ -1,6 +1,6 @@
 from crewai import Agent, Crew, Process, Task
 from git_issue_agent.config import Settings
-from git_issue_agent.data_types import RepositoryJudgement
+from git_issue_agent.data_types import UserQueryJudgement
 from git_issue_agent.llm import CrewLLM
 from git_issue_agent.prompts import REPO_ID_BACKSTORY, TOOL_CALL_PROMPT
 class GitAgents():
@@ -12,8 +12,8 @@ class GitAgents():
         # Pre-requisitie validator
         # ##################
         self.prereq_identifier = Agent(
-            role="GitHub Issue Analyst",
-            goal="To determine whether a user has supplied enough information to find issues contained in Github repositories.",
+            role="Pre-requisite Judge",
+            goal="To determine whether a user has supplied enough information to find Github issues.",
             backstory=REPO_ID_BACKSTORY,
             verbose=True,
             llm=self.llm.llm
@@ -24,9 +24,9 @@ class GitAgents():
                 "User query: {request}"
             ),
             agent=self.prereq_identifier,
-            output_pydantic=RepositoryJudgement,
+            output_pydantic=UserQueryJudgement,
             expected_output=(
-                "A judgement on whether a request from a user successfully identifies both a repository owner/organization and repository name, accompanied by an explanation"
+                "A judgement on whether a request from a user successfully identifies an organization or user that owns issues."
             ),
         )
 
@@ -43,13 +43,14 @@ class GitAgents():
         self.issue_researcher = Agent(
             role="GitHub Issue Analyst",
             goal=(
-                "You are connected to GitHub's MCP server and specialize in exploring and summarizing repository issues. "
+                "Answer the user's query, using tools provided from MCP server. "
                 "Prefer read-only operations. When querying, be explicit about repo owner/name and filters."
             ),
             backstory=TOOL_CALL_PROMPT,
             tools=issue_tools,
             verbose=True,
             llm=self.llm.llm,
+            inject_date=True,
             max_iter=3
         )
             
@@ -58,17 +59,11 @@ class GitAgents():
         self.issue_query_task = Task(
             description=(
                 "Retrieve Github issues using tool calls in order to answer the user's query.\n"
-                "Instructions:\n"
-                "1) Identify the criteria they specify such as username, organization and/or repository name.\n"
-                "2) If the user provides filters (e.g., state=open, label=bug, assignee=alice, or search text), apply them.\n"
-                "3) Return a clean, numbered summary: issue number, title, state, labels, assignee(s), and direct URL.\n"
-                "4) Prefer listing or searching for issues over the get_issues API unless the user gives you a specific issue number"
                 "User query: {request}"
             ),
             agent=self.issue_researcher,
             expected_output=(
-                "A concise report (Markdown allowed) listing matching issues with links and key metadata, "
-                "or a brief explanation if nothing matches."
+                "A direct answer to the user's query, citing the output of the tool to support your answer. Provide as many details as possible to support your claim."
             ),
         )
 
