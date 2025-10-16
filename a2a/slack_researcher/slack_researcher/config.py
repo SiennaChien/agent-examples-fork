@@ -113,8 +113,3 @@ class Settings(BaseSettings):
         return self
 
 settings = Settings()  # type: ignore[call-arg]
-
-client_id = get_client_id()
-logging.info(f"Extracted CLIENT_ID from SVID JWT: {client_id}")
-print(f"Extracted CLIENT_ID from SVID JWT: {client_id}")
-raise Exception("Extracted CLIENT_ID from SVID JWT: " + str(client_id))
