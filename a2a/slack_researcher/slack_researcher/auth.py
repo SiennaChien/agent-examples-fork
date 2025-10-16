@@ -42,10 +42,10 @@ class BearerAuthBackend(AuthenticationBackend):
         self.jwks_url = settings.JWKS_URI
 
         self.claims_options = {}
-        if settings.AUDIENCE is None:
-            logger.debug(f"AUDIENCE env var not set. No audience check will be performed. ")
+        if settings.CLIENT_ID is None:
+            logger.debug(f"CLIENT_ID is not set. No audience check will be performed. ")
         else:
-            self.claims_options["aud"] = {"essential": True, "value": settings.AUDIENCE}
+            self.claims_options["aud"] = {"essential": True, "value": settings.CLIENT_ID}
         if settings.ISSUER is None:
             logger.debug(f"ISSUER env var no set. No issuer check will be performed")
         else:
