@@ -114,6 +114,6 @@ class Settings(BaseSettings):
 
 settings = Settings()  # type: ignore[call-arg]
 
-client_id = settings.get_client_id()
+client_id = get_client_id()
 logging.info(f"Extracted CLIENT_ID from SVID JWT: {client_id}")
 print(f"Extracted CLIENT_ID from SVID JWT: {client_id}")
