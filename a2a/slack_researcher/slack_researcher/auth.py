@@ -42,6 +42,10 @@ class BearerAuthBackend(AuthenticationBackend):
         self.jwks_url = settings.JWKS_URI
 
         self.claims_options = {}
+        
+        logger.info("CLIENT_ID from env: " + str(settings.CLIENT_ID))
+        print("CLIENT_ID from env: " + str(settings.CLIENT_ID))
+        
         if settings.CLIENT_ID is None:
             logger.debug(f"CLIENT_ID is not set. No audience check will be performed. ")
         else:
