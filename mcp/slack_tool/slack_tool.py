@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import jwt
 from typing import List, Dict, Any
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_access_token, AccessToken
