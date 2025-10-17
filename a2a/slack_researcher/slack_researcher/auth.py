@@ -42,10 +42,7 @@ class BearerAuthBackend(AuthenticationBackend):
         self.jwks_url = settings.JWKS_URI
 
         self.claims_options = {}
-        
-        logger.info("CLIENT_ID from env: " + str(settings.CLIENT_ID))
-        print("CLIENT_ID from env: " + str(settings.CLIENT_ID))
-        
+
         if settings.CLIENT_ID is None:
             logger.debug(f"CLIENT_ID is not set. No audience check will be performed. ")
         else:
@@ -58,7 +55,7 @@ class BearerAuthBackend(AuthenticationBackend):
     async def get_jwks(self):
         logger.debug(f"Fetching JWKS from {self.jwks_url}")
         jwks = None
-        try: 
+        try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.jwks_url)
                 response.raise_for_status()
@@ -85,7 +82,7 @@ class BearerAuthBackend(AuthenticationBackend):
         if conn.scope.get("path") == "/.well-known/agent.json":
             logger.debug("Bypassing authentication for public agent card path")
             return None
-        
+
         # extract token
         token = await self.get_token(conn)
         if token is None:
@@ -94,13 +91,9 @@ class BearerAuthBackend(AuthenticationBackend):
         # fetch jwks
         jwks = await self.get_jwks()
 
-        try: 
+        try:
             # decode and validate claims
             claims = jwt.decode(s=token, key=jwks, claims_options=self.claims_options)
-            
-            logger.info("Claims before validate: " + str(claims))
-            print("Claims before validate: " + str(claims))
-            
             claims.validate()
             logger.debug("Token successfully validated.")
 
@@ -148,7 +141,7 @@ class TokenExchanger:
         # make token endpoint call
         logger.debug('Performing token exchange')
         async with httpx.AsyncClient() as client:
-            try: 
+            try:
                 response = await client.post(self.token_url, data=data, headers=headers)
                 response.raise_for_status() # raise exception if Http status error
                 token_data = response.json()
@@ -171,7 +164,7 @@ async def auth_headers(access_token, target_audience = None, target_scopes = Non
         access_token = await token_exchanger.exchange(access_token, audience=target_audience, scope=target_scopes)
     except AuthenticationError as e:
         logging.error(f"Error performing token exchange - returning empty headers: {e}")
-        return headers # 
+        return headers #
     except Exception as e:
         logging.debug(f"Error creating token exchanger - will passthrough token")
 
