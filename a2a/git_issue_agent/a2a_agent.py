@@ -158,13 +158,6 @@ class GithubExecutor(AgentExecutor):
         Returns:
             None
         """
-        ###
-        # commenting this out for now since we have external github MCP.
-        # in the future we need to figure out the token exchange story for this scenario
-        #
-        #if settings.JWKS_URI:
-        #    user_token = context.call_context.user._user.access_token
-        #else:
         if settings.JWKS_URI:
             user_token = context.call_context.user._user.access_token
         else: 
