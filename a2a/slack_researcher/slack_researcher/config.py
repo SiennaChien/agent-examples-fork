@@ -13,6 +13,8 @@ def get_client_id() -> str:
     """
     # Read SVID JWT from file to get client ID
     jwt_file_path = "/opt/jwt_svid.token"
+    
+    content = None
     try:
         with open(jwt_file_path, "r") as file:
             content = file.read()
