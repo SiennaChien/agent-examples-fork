@@ -16,19 +16,21 @@ def get_client_id() -> str:
     try:
         with open(jwt_file_path, "r") as file:
             content = file.read()
-
     except FileNotFoundError:
-        print(f"Error: The file {jwt_file_path} was not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        raise Exception(f"SVID JWT file {jwt_file_path} not found.")
 
     if content is None or content.strip() == "":
-        raise Exception(f"No content read from SVID JWT.")
+        raise Exception(f"No content in SVID JWT file {jwt_file_path}.")
 
-    decoded = jwt.decode(content, options={"verify_signature": False})
-    if "sub" not in decoded:
-        raise Exception('SVID JWT does not contain a "sub" claim.')
-    return decoded["sub"]
+    try:
+        decoded = jwt.decode(content, options={"verify_signature": False})
+    except jwt.DecodeError:
+        raise ValueError(f"Failed to decode SVID JWT file {jwt_file_path}.")
+
+    try:
+        return decoded["sub"]
+    except KeyError:
+        raise KeyError('SVID JWT is missing required "sub" claim.')
 
 class Settings(BaseSettings):
     # static path for client secret file

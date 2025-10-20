@@ -48,7 +48,7 @@ class BearerAuthBackend(AuthenticationBackend):
         else:
             self.claims_options["aud"] = {"essential": True, "value": settings.CLIENT_ID}
         if settings.ISSUER is None:
-            logger.debug(f"ISSUER env var no set. No issuer check will be performed")
+            logger.debug(f"ISSUER env var not set. No issuer check will be performed")
         else:
             self.claims_options["iss"] = {"essential": True, "value": settings.ISSUER}
 
