@@ -165,7 +165,10 @@ class GithubExecutor(AgentExecutor):
         #if settings.JWKS_URI:
         #    user_token = context.call_context.user._user.access_token
         #else:
-        user_token = settings.GITHUB_TOKEN
+        if settings.JWKS_URI:
+            user_token = context.call_context.user._user.access_token
+        else: 
+            user_token = settings.GITHUB_TOKEN
         user_input = [context.get_user_input()]
         task = context.current_task
         if not task:
