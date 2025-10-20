@@ -126,10 +126,10 @@ oc -n team1 get configmap environments -o yaml > /tmp/environments.yaml
 ```YAML
 data:
   UPSTREAM_MCP: https://api.githubcopilot.com/mcp/
-  REQUIRED_SCOPE=profile
+  REQUIRED_SCOPE: profile
   INIT_AUTH_HEADER: Bearer ${GITHUB_TOKEN}
-  UPSTREAM_HEADER_TO_USE_IF_IN_AUDIENCE=Bearer $GITHUB_TOKEN
-  UPSTREAM_HEADER_TO_USE_IF_NOT_IN_AUDIENCE=Bearer rutabaga
+  UPSTREAM_HEADER_TO_USE_IF_IN_AUDIENCE: Bearer $GITHUB_TOKEN
+  UPSTREAM_HEADER_TO_USE_IF_NOT_IN_AUDIENCE: Bearer rutabaga
 ```
 
 After adding the new env vars, apply to Kagenti using `kubectl apply -n team1 -f /tmp/environments.yaml`.
@@ -141,3 +141,41 @@ Now that the environment variables are available, start an instance of the tool
 - Set the Target Port to 9090
 - Specify Subfolder `mcp/github_tool`
 - Click "Build & Deploy New Tool" to deploy.
+
+Once the tool is deployed, if you wish to test it from outside Kagenti you'll need to create an HTTPRoute for it.
+
+```bash
+cat <<EOF | > /tmp/expose-github-tool.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels:
+    mcp-server: "true"
+  name: github-route-ext
+  namespace: team1
+spec:
+  hostnames:
+  - github-tool.127-0-0-1.sslip.io
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    namespace: gateway-system
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: github-tool
+      port: 8000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+EOF
+oc --context kind-agent-platform apply -f /tmp/expose-github-tool.yaml
+```
+
+At this point, you can do the MCP curls above if you define `MCP=http://github-tool.127-0-0-1.sslip.io:8888/mcp`
+
+

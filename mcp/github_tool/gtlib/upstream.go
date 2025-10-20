@@ -134,10 +134,10 @@ func MakeUpstream(mcpServerURL, initAuthHeader string) (*client.Client, context.
 		defer cancel()
 		return nil, nil, fmt.Errorf("initialization failed %w", err)
 	}
-	fmt.Printf("@@@ ecs initResult=%v\n", initResult)
+	fmt.Printf("initResult=%v\n", initResult)
 
 	clientTransport := httpClient.GetTransport()
-	fmt.Printf("@@@ ecs transport is %v, a %T\n", clientTransport, clientTransport)
+	fmt.Printf("transport is %v, a %T\n", clientTransport, clientTransport)
 	streamableHttpTransport, ok := clientTransport.(*transport.StreamableHTTP)
 	if ok {
 		streamableHttpTransport.SetNotificationHandler(func(notification mcp.JSONRPCNotification) {
@@ -185,9 +185,9 @@ func toolToServerTool(m *mcpAuthImpl, newTool mcp.Tool) server.ServerTool {
 	return server.ServerTool{
 		Tool: newTool,
 		Handler: func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			fmt.Printf("@@@ ecs in Handler, request.Header is %#v, a %T\n", request.Header, request.Header)
+			fmt.Printf("In Handler, request.Header is %#v, a %T\n", request.Header, request.Header)
 			for k, v := range request.Header {
-				fmt.Printf("@@@ ecs Found header %s: %v\n", k, v)
+				fmt.Printf("Found header %s: %v\n", k, v)
 			}
 			result, err := m.CallTool(ctx,
 				downstreamSessionID(request.Header.Get("Mcp-Session-Id")),
@@ -420,10 +420,10 @@ func getAuthorizationHeaderFromBearer(auth string) string {
 	// return os.Getenv(fmt.Sprintf("GITHUB_TOKEN_for_%s", decodedToken["preferred_username"]))
 
 	if scopeMatches {
-		fmt.Printf("@@@ ecs the REQUIRED_SCOPE %q in scopes %v\n", requiredScope, scopes)
+		fmt.Printf("The REQUIRED_SCOPE %q in scopes %v\n", requiredScope, scopes)
 		return os.Getenv("UPSTREAM_HEADER_TO_USE_IF_IN_AUDIENCE")
 	} else {
-		fmt.Printf("@@@ ecs the REQUIRED_SCOPE %q NOT IN scopes %v\n", requiredScope, scopes)
+		fmt.Printf("The REQUIRED_SCOPE %q NOT IN scopes %v\n", requiredScope, scopes)
 		return os.Getenv("UPSTREAM_HEADER_TO_USE_IF_NOT_IN_AUDIENCE")
 	}
 
@@ -437,14 +437,14 @@ func getAuthorizationHeaderFromBearer(auth string) string {
 
 			// Validate the signing method and return the secret key
 			if hmacToken, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
-				fmt.Printf("@@@ ecs got HMAC token %#v\n", hmacToken)
+				fmt.Printf("Got HMAC token %#v\n", hmacToken)
 				secretKey := "a-string-secret-at-least-256-bits-long" // TODO
 				return secretKey, nil
 			}
 
 			// FYI Keycloak bearer tokens are signed with jwt.SigningMethodRSA, not SigningMethodHMAC
 			if rsaToken, ok := token.Method.(*jwt.SigningMethodRSA); ok {
-				fmt.Printf("@@@ ecs got RSA token %#v\n", rsaToken)
+				fmt.Printf("Got RSA token %#v\n", rsaToken)
 
 				// A fast way to validate is to follow the steps of
 				// https://stackoverflow.com/questions/77838958/go-validate-access-token-keycloak
@@ -462,10 +462,10 @@ func getAuthorizationHeaderFromBearer(auth string) string {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		})
 		if err != nil {
-			fmt.Printf("@@@ ecs could not parse JWT, failed with %v\n", err)
+			fmt.Printf("Could not parse JWT, failed with %v\n", err)
 		} else {
-			fmt.Printf("@@@ ecs parsed into parsedToken %#v, a %T\n", parsedToken, parsedToken)
-			fmt.Printf("@@@ ecs claims is %#v\n", claims)
+			fmt.Printf("Parsed into parsedToken %#v, a %T\n", parsedToken, parsedToken)
+			fmt.Printf("Claims is %#v\n", claims)
 		}
 
 		return "" // fail
