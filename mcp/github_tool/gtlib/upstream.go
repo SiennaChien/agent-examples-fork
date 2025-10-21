@@ -2,8 +2,6 @@ package lib
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -343,26 +342,24 @@ func getAuthorizationHeaderFromBearer(auth string) string {
 	}
 
 	token := strings.TrimPrefix(auth, "Bearer ")
-	var decodedToken map[string]interface{}
 
-	// The token will be several base64 pieces separated by '.'.  Split in '.', use base64.StdEncoding.DecodeString(eachPart)
-	// This method is insecure, because it trusts the bearer token, rather than verifying it cryptographically or by
-	// passing it to an OIDC endpoint
-	tokenParts := strings.Split(token, ".")
-	if len(tokenParts) == 3 {
-		// Only look at the middle part
-		tokenPart := tokenParts[1]
-		decodedPart, err := base64.StdEncoding.DecodeString(tokenPart)
-		if err != nil {
-			fmt.Printf("@@@ couldn't decode part: %v of %q\n", err, tokenPart)
-		} else {
-			// fmt.Printf("part is %q\n", decodedPart)
-			err = json.Unmarshal(decodedPart, &decodedToken)
-			if err != nil {
-				fmt.Printf("@@@ couldn't unmarshal part: %v\n", err)
-			}
-		}
+	// For explanation see https://stackoverflow.com/questions/55698770/decode-jwt-without-validation-and-find-scope
+	jwtToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
+	if err != nil {
+		fmt.Printf("Bearer token couldn't be parsed: %v\n", err)
+		return ""
 	}
+
+	// TODO check that jwtToken hasn't expired, is valid, etc.
+
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+	if !ok {
+		fmt.Printf("Parsed token not MapClaims: %v\n", err)
+		return ""
+	}
+
+	// fmt.Printf("Got claims %#v\n", claims)
+	decodedToken := claims
 
 	/*
 		x := map[string]interface {}{

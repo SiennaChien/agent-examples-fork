@@ -2,7 +2,10 @@ module github.com/kagenti/mcp-mitm
 
 go 1.24.9
 
-require github.com/mark3labs/mcp-go v0.41.1
+require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/mark3labs/mcp-go v0.41.1
+)
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect

@@ -178,4 +178,3 @@ oc --context kind-agent-platform apply -f /tmp/expose-github-tool.yaml
 
 At this point, you can do the MCP curls above if you define `MCP=http://github-tool.127-0-0-1.sslip.io:8888/mcp`
 
-
