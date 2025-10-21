@@ -22,7 +22,6 @@ from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill, TaskState, TextPart, SecurityScheme, HTTPAuthSecurityScheme
 from a2a.utils import new_agent_text_message, new_task
 
-from starlette.authentication import AuthCredentials, SimpleUser, AuthenticationBackend
 from starlette.middleware.authentication import AuthenticationMiddleware
 
 from git_issue_agent.auth import on_auth_error, BearerAuthBackend, auth_headers
