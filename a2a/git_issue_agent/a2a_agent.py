@@ -32,25 +32,6 @@ from git_issue_agent.main import GitIssueAgent
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=settings.LOG_LEVEL, stream=sys.stdout, format='%(levelname)s: %(message)s')
 
-class BearerAuthBackend(AuthenticationBackend):
-    """ Very temporary demo to grab auth token and print it"""
-    async def authenticate(self, conn):
-        try:
-            auth = conn.headers.get("authorization")
-            if not auth or not auth.lower().startswith("bearer "):
-                print("No bearer token provided")
-                return
-            token = auth.split(" ", 1)[1]
-            print(f"TOKEN: {token}")
-
-            # Storing the token as the username - not a real life scenario - just demo-ing the passing of creds
-            user = SimpleUser(token)
-            return AuthCredentials(["authenticated"]), user
-        except Exception as e:
-            logger.error("Exception when attempting to obtain user token")
-            logger.error(e)
-    
-
 def get_agent_card(host: str, port: int):
     """Returns the Agent Card for the AG2 Agent."""
     capabilities = AgentCapabilities(streaming=True)
