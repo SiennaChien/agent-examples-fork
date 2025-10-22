@@ -138,10 +138,12 @@ class GithubExecutor(AgentExecutor):
         Returns:
             None
         """
-        if settings.JWKS_URI:
+        if settings.GITHUB_TOKEN: 
+            user_token = settings.GITHUB_TOKEN
+        elif settings.JWKS_URI:
             user_token = context.call_context.user._user.access_token
         else: 
-            user_token = settings.GITHUB_TOKEN
+            raise Exception("either JWKS_URI or GITHUB_TOKEN env var must be set")
         user_input = [context.get_user_input()]
         task = context.current_task
         if not task:
@@ -222,8 +224,10 @@ def run():
     )
 
     app = server.build()  # this returns a Starlette app
-    if not settings.JWKS_URI is None:
+    if settings.JWKS_URI:
         logging.info("JWKS_URI is set - using JWT Validation middleware")
-    app.add_middleware(AuthenticationMiddleware, backend=BearerAuthBackend(), on_error=on_auth_error)
+        app.add_middleware(AuthenticationMiddleware, backend=BearerAuthBackend(), on_error=on_auth_error)
+    elif settings.GITHUB_TOKEN is None:
+        logging.error("One of JWKS_URI or GITHUB_TOKEN must be set.")
 
     uvicorn.run(app, host="0.0.0.0", port=settings.SERVICE_PORT)
