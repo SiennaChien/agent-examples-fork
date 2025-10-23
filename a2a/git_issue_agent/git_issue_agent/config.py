@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     )
     MCP_URL: str = Field(os.getenv("MCP_URL", "https://api.githubcopilot.com/mcp/"), description="Endpoint for an option MCP server")
     SERVICE_PORT: int = Field(os.getenv("SERVICE_PORT", 8000), description="Port on which the service will run.")
-    GITHUB_TOKEN: str = Field(os.getenv("GITHUB_TOKEN", None), description="If not using agent with authorization, the default Github token to use")
+    GITHUB_TOKEN: Optional[str] = Field(os.getenv("GITHUB_TOKEN", None), description="If not using agent with authorization, the default Github token to use")
 
     # auth variables for token validation
     ISSUER: Optional[str] = Field(
