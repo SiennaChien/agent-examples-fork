@@ -39,7 +39,7 @@ def get_client_secret_from_svid(secret_file_path) -> Optional[str]:
         with open(secret_file_path, "r") as f:
             return f.read().strip()
     except FileNotFoundError:
-        print(f"CLIENT_SECRET file not found at {self.secret_file_path}")
+        print(f"CLIENT_SECRET file not found at {secret_file_path}")
         return None
     except Exception as e:
         print(f"Error reading CLIENT_SECRET file: {e}")
