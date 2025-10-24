@@ -35,7 +35,7 @@ def get_client_id_from_svid() -> Optional[str]:
     try:
         return decoded["sub"]
     except KeyError:
-        print("SVID JWT is missing required "sub" claim.")
+        print("SVID JWT is missing required `sub` claim.")
         return None
 
 def get_client_secret_from_svid(secret_file_path) -> Optional[str]:
