@@ -7,7 +7,7 @@ from pydantic import model_validator
 from pydantic import Field
 from typing import Literal, Optional
 
-def get_client_id_from_svid() -> Optional]str]:
+def get_client_id_from_svid() -> Optional[str]:
     """
     Read the SVID JWT from file and extract the client ID from the "sub" claim.
     """
