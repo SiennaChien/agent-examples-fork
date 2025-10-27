@@ -1,7 +1,4 @@
-"""Fast Flights MCP tool
-
-This MCP server exposes tools to search flights and summarize results using the fast-flights API.
-"""
+# Fast Flights MCP tool
 
 import json
 import logging
@@ -28,38 +25,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), stream=sys.stdout, for
 def _get_currency() -> str:
     return os.getenv("FAST_FLIGHTS_CURRENCY", "USD")
 
-
-def _parse_duration(duration_str: str) -> int:
-    """Convert duration string like '14 hr 15 min' to minutes."""
-    if not duration_str or duration_str == "None":
-        return 0
-    
-    try:
-        # Handle formats like "14 hr 15 min", "2 hr", "45 min"
-        total_minutes = 0
-        parts = duration_str.lower().split()
-        
-        for i, part in enumerate(parts):
-            if part == "hr" and i > 0:
-                try:
-                    hours = int(parts[i-1])
-                    total_minutes += hours * 60
-                except ValueError:
-                    pass
-            elif part == "min" and i > 0:
-                try:
-                    minutes = int(parts[i-1])
-                    total_minutes += minutes
-                except ValueError:
-                    pass
-        
-        return total_minutes
-    except Exception:
-        return 0
-
-
 def _result_to_dict(r: Result, effective_currency: str) -> List[Dict[str, Any]]:
-    """Convert a Result object to a list of flight dictionaries for JSON serialization."""
     flights = getattr(r, 'flights', [])
     if not flights:
         return [{
@@ -74,7 +40,6 @@ def _result_to_dict(r: Result, effective_currency: str) -> List[Dict[str, Any]]:
             "arrival": None,
         }]
     
-    # Process all flights, not just the first one
     flight_results = []
     for flight in flights:
         flight_results.append({
@@ -103,7 +68,6 @@ def _format_money(value: Any, currency: str) -> str:
 
 
 def _parse_iso_date(d: str) -> Optional[date]:
-    """Parse an ISO date (YYYY-MM-DD) into a date object. Returns None on failure."""
     if not d:
         return None
     try:
@@ -113,7 +77,6 @@ def _parse_iso_date(d: str) -> Optional[date]:
 
 
 def _date_in_past(d: date) -> bool:
-    """Return True if the provided date is before today."""
     try:
         return d < date.today()
     except Exception:
@@ -122,33 +85,23 @@ def _date_in_past(d: date) -> bool:
 
 @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True})
 def search_airports(query: str, limit: int = 10) -> str:
-    """Search for airports by name or code.
-
-    This wraps the fast-flights `search_airports()` API and returns a JSON list of
-    matching airports. Each airport is serialized as an object with fields:
+    """Search for airports by name or code. Each airport is serialized as an object with fields:
     - name: enum member name (e.g. TAIPEI_SONGSHAN_AIRPORT)
     - code: likely the IATA code (if available on the enum `.value`)
     - repr: string representation of the enum
-
-    Example:
-        airport = search_airports("taipei")[0]
-        # Airport.TAIPEI_SONGSHAN_AIRPORT
 
     Parameters:
     - query: search string (city name, airport name, or IATA code)
     - limit: max number of results to return
     """
     try:
-        # fast_flights exposes `search_airport` (singular) — it may return a list
         results = ff_search_airport(query)
     except Exception as e:
         logger.error("airport search failed: %s", e)
         return json.dumps({"error": str(e)})
 
-    # If the API returned enum members or objects, serialize them simply.
     raw = []
     for a in (results or [])[:limit]:
-        # If it's an enum-like Airport, include name and value
         if hasattr(a, "name") or hasattr(a, "value"):
             raw.append({
                 "name": getattr(a, "name", None),
@@ -196,11 +149,9 @@ def search_flights(
     - currency: 3-letter currency code (defaults to USD)
     - airlines: comma-separated IATA codes or alliances (SKYTEAM, STAR_ALLIANCE, ONEWORLD)
     - max_stops: maximum number of stops (defaults to no limit)
-
-    Returns JSON string with provider response (subset) for later processing.
     """
     effective_currency = currency or _get_currency()
-    # Validate dates are ISO format and not in the past
+    # Validate dates are not in the past
     dep_date_obj = _parse_iso_date(departure_date)
     if dep_date_obj is None:
         return json.dumps({"error": "Invalid departure_date format. Use YYYY-MM-DD", "departure_date": departure_date})
@@ -218,16 +169,13 @@ def search_flights(
         if ret_date_obj < dep_date_obj:
             return json.dumps({"error": "return_date cannot be before departure_date", "departure_date": departure_date, "return_date": return_date})
     
-    # Build flight data list
     flight_data_kwargs = {
         "date": departure_date,
         "from_airport": from_airport,
         "to_airport": to_airport,
     }
     
-    # Add optional parameters
     if airlines:
-        # Parse comma-separated airline codes
         airline_list = [airline.strip().upper() for airline in airlines.split(",")]
         flight_data_kwargs["airlines"] = airline_list
     
@@ -236,7 +184,7 @@ def search_flights(
     
     flight_data_list = [FlightData(**flight_data_kwargs)]
     
-    # Add return flight if specified
+    # Add return flight for round-trip
     if return_date:
         return_flight_kwargs = flight_data_kwargs.copy()
         return_flight_kwargs.update({
@@ -249,7 +197,6 @@ def search_flights(
     else:
         trip_type = "one-way"
     
-    # Map cabin to seat type
     seat_mapping = {
         "economy": "economy",
         "premium_economy": "premium_economy", 
@@ -258,7 +205,6 @@ def search_flights(
     }
     seat_type = seat_mapping.get(cabin, "economy")
     
-    # Validate passenger constraints
     total_passengers = adults + children + infants_in_seat + infants_on_lap
     if total_passengers > 9:
         return json.dumps({
@@ -314,7 +260,6 @@ def search_flights(
         fetch_mode="fallback",
     )
 
-    # Convert to list format for consistency with existing tools
     summary: List[Dict[str, Any]] = _result_to_dict(result, effective_currency)
     return json.dumps({
         "request": {
@@ -336,8 +281,7 @@ def search_flights(
         "raw": summary,
     })
 
-# host can be specified with HOST env variable
-# transport can be specified with MCP_TRANSPORT env variable (defaults to streamable-http)
+
 def run_server():
     "Run the MCP server"
     transport = os.getenv("MCP_TRANSPORT", "streamable-http")
