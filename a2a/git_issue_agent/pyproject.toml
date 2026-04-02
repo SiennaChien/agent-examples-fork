@@ -1,16 +1,15 @@
 [project]
-name = "slack-researcher"
+name = "git-issue-agent"
 version = "0.1.0"
 requires-python = ">=3.11,<3.13"
-description = "Slack research Agent module"
+description = "Git issue Agent module"
 dependencies = [
-    "ag2[openai,mcp]>=0.9.6",
-    "tavily-python>=0.7.7",
     "python-dotenv>=1.1.0",
     "a2a-sdk>=0.2.16",
-    "python-keycloak>=5.5.1",
+    "crewai==0.203.1",
+    "crewai-tools==0.76.0",
+    "crewai-tools[mcp]==0.76.0",
     "authlib>=1.6.0",
-    "PyJWT>=2.10.1",
 ]
 
 [tool.ruff]

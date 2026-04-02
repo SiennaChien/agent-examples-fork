@@ -10,7 +10,7 @@ from starlette.authentication import AuthenticationError as StarletteAuthenticat
 from authlib.jose import jwt
 from authlib.common.errors import AuthlibBaseError
 
-from slack_researcher.config import settings
+from git_issue_agent.config import settings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=settings.LOG_LEVEL, stream=sys.stdout, format='%(levelname)s: %(message)s')
@@ -42,20 +42,19 @@ class BearerAuthBackend(AuthenticationBackend):
         self.jwks_url = settings.JWKS_URI
 
         self.claims_options = {}
-
         if settings.AUDIENCE is None:
-            logger.debug(f"AUDIENCE or CLIENT_ID is not set. No audience check will be performed. ")
+            logger.debug(f"AUDIENCE or CLIENT_ID not set. No audience check will be performed. ")
         else:
             self.claims_options["aud"] = {"essential": True, "value": settings.AUDIENCE}
         if settings.ISSUER is None:
-            logger.debug(f"ISSUER env var not set. No issuer check will be performed")
+            logger.debug(f"ISSUER env var no set. No issuer check will be performed")
         else:
             self.claims_options["iss"] = {"essential": True, "value": settings.ISSUER}
 
     async def get_jwks(self):
         logger.debug(f"Fetching JWKS from {self.jwks_url}")
         jwks = None
-        try:
+        try: 
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.jwks_url)
                 response.raise_for_status()
@@ -82,7 +81,7 @@ class BearerAuthBackend(AuthenticationBackend):
         if conn.scope.get("path") == "/.well-known/agent.json":
             logger.debug("Bypassing authentication for public agent card path")
             return None
-
+        
         # extract token
         token = await self.get_token(conn)
         if token is None:
@@ -91,7 +90,7 @@ class BearerAuthBackend(AuthenticationBackend):
         # fetch jwks
         jwks = await self.get_jwks()
 
-        try:
+        try: 
             # decode and validate claims
             claims = jwt.decode(s=token, key=jwks, claims_options=self.claims_options)
             claims.validate()
@@ -121,6 +120,7 @@ class TokenExchanger:
         self.token_url = settings.TOKEN_URL
         self.client_id = settings.CLIENT_ID
         self.client_secret = settings.CLIENT_SECRET
+        logging.debug(f"Token Exchanger parameters: {self.token_url}, {self.client_id}, {self.client_secret}")
 
     async def exchange(self, subject_token: str, audience: str = None, scope: str = None) -> str:
         # headers
@@ -139,9 +139,9 @@ class TokenExchanger:
         if not scope is None:
             data['scope'] = scope
         # make token endpoint call
-        logger.debug('Performing token exchange')
+        logger.debug(f"Performing token exchange with audience {audience}, scope {scope}")
         async with httpx.AsyncClient() as client:
-            try:
+            try: 
                 response = await client.post(self.token_url, data=data, headers=headers)
                 response.raise_for_status() # raise exception if Http status error
                 token_data = response.json()
@@ -164,7 +164,7 @@ async def auth_headers(access_token, target_audience = None, target_scopes = Non
         access_token = await token_exchanger.exchange(access_token, audience=target_audience, scope=target_scopes)
     except AuthenticationError as e:
         logging.error(f"Error performing token exchange - returning empty headers: {e}")
-        return headers #
+        return headers # 
     except Exception as e:
         logging.debug(f"Error creating token exchanger - will passthrough token")
 

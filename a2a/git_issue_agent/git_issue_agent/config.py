@@ -1,38 +1,42 @@
 import json
-import logging
 import os
 import jwt
+import sys
 from pydantic_settings import BaseSettings
 from pydantic import model_validator
 from pydantic import Field
 from typing import Literal, Optional
 
-def get_client_id_from_svid() -> str:
+def get_client_id_from_svid() -> Optional[str]:
     """
     Read the SVID JWT from file and extract the client ID from the "sub" claim.
     """
     # Read SVID JWT from file to get client ID
     jwt_file_path = "/opt/jwt_svid.token"
-    
+
     content = None
     try:
         with open(jwt_file_path, "r") as file:
             content = file.read()
     except FileNotFoundError:
-        raise Exception(f"SVID JWT file {jwt_file_path} not found.")
+        print(f"SVID JWT file {jwt_file_path} not found.")
+        return None
 
     if content is None or content.strip() == "":
-        raise Exception(f"No content in SVID JWT file {jwt_file_path}.")
+        print(f"No content in SVID JWT file {jwt_file_path}.")
+        return None
 
     try:
         decoded = jwt.decode(content, options={"verify_signature": False})
     except jwt.DecodeError:
-        raise ValueError(f"Failed to decode SVID JWT file {jwt_file_path}.")
+        print(f"Failed to decode SVID JWT file {jwt_file_path}.")
+        return None
 
     try:
         return decoded["sub"]
     except KeyError:
-        raise KeyError('SVID JWT is missing required "sub" claim.')
+        print("SVID JWT is missing required `sub` claim.")
+        return None
 
 def get_client_secret_from_svid(secret_file_path) -> Optional[str]:
     try:
@@ -50,15 +54,15 @@ class Settings(BaseSettings):
     secret_file_path: str = "/shared/secret.txt"
 
     LOG_LEVEL: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] = Field(
-        os.getenv("LOG_LEVEL", "DEBUG"),
-        description="Application log level",
+        os.getenv("LOG_LEVEL", "INFO"),
+        description="Application log level",       
     )
     TASK_MODEL_ID: str = Field(
-        os.getenv("TASK_MODEL_ID", "granite3.3:8b"),
+        os.getenv("TASK_MODEL_ID", "ollama/ibm/granite4:latest"),
         description="The ID of the task model",
     )
     LLM_API_BASE: str = Field(
-        os.getenv("LLM_API_BASE", "http://localhost:11434/v1"),
+        os.getenv("LLM_API_BASE", "http://host.docker.internal:11434"),
         description="The URL for OpenAI API",
     )
     LLM_API_KEY: str = Field(os.getenv("LLM_API_KEY", "my_api_key"), description="The key for OpenAI API")
@@ -68,13 +72,9 @@ class Settings(BaseSettings):
         description="The temperature for the model",
         ge=0,
     )
-    MAX_PLAN_STEPS: int = Field(
-        os.getenv("MAX_PLAN_STEPS", 6),
-        description="The maximum number of plan steps",
-        ge=1,
-    )
-    MCP_URL: str = Field(os.getenv("MCP_URL", "http://slack-tool:8000"), description="Endpoint for an option MCP server")
-    SERVICE_PORT: int = Field(os.getenv("SERVICE_URL", 8000), description="Port on which the service will run.")
+    MCP_URL: str = Field(os.getenv("MCP_URL", "https://api.githubcopilot.com/mcp/"), description="Endpoint for an option MCP server")
+    SERVICE_PORT: int = Field(os.getenv("SERVICE_PORT", 8000), description="Port on which the service will run.")
+    GITHUB_TOKEN: Optional[str] = Field(os.getenv("GITHUB_TOKEN", None), description="If not using agent with authorization, the default Github token to use")
 
     # auth variables for token validation
     ISSUER: Optional[str] = Field(
@@ -96,12 +96,16 @@ class Settings(BaseSettings):
         description="Token endpoint to obtain new access tokens"
     )
     CLIENT_ID: Optional[str] = Field(
-        get_client_id_from_svid(),
+        os.getenv("CLIENT_ID", get_client_id_from_svid()),
         description="Client ID to authenticate to OAuth server"
     )
     CLIENT_SECRET: Optional[str] = Field(
-        get_client_secret_from_svid(secret_file_path),
+        os.getenv("CLIENT_SECRET", get_client_secret_from_svid(secret_file_path)),
         description="Client secret to authenticate to OAuth server"
+    )
+    TARGET_AUDIENCE: Optional[str] = Field(
+        os.getenv("TARGET_AUDIENCE", None),
+        description="Target audience to request during token exchange"
     )
     TARGET_SCOPES: Optional[str] = Field(
         os.getenv("TARGET_SCOPES", None),
@@ -119,6 +123,7 @@ class Settings(BaseSettings):
                 self.EXTRA_HEADERS = json.loads(os.getenv("EXTRA_HEADERS"))
             except json.JSONDecodeError:
                 raise ValueError("EXTRA_HEADERS must be a valid JSON string")
+
         return self
 
 settings = Settings()  # type: ignore[call-arg]

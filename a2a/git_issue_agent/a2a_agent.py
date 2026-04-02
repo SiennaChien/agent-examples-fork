@@ -8,7 +8,9 @@ import traceback
 from typing import Callable
 
 import uvicorn
-from autogen.mcp.mcp_client import create_toolkit, Toolkit
+from crewai_tools import MCPServerAdapter
+from crewai_tools.adapters.tool_collection import ToolCollection
+
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
@@ -22,30 +24,30 @@ from a2a.utils import new_agent_text_message, new_task
 
 from starlette.middleware.authentication import AuthenticationMiddleware
 
-from slack_researcher.config import settings, Settings
-from slack_researcher.event import Event
-from slack_researcher.main import SlackAgent
-from slack_researcher.auth import on_auth_error, BearerAuthBackend, auth_headers
+from git_issue_agent.auth import on_auth_error, BearerAuthBackend, auth_headers
+from git_issue_agent.config import settings, Settings
+from git_issue_agent.event import Event
+from git_issue_agent.main import GitIssueAgent
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=settings.LOG_LEVEL, stream=sys.stdout, format='%(levelname)s: %(message)s')
 
 def get_agent_card(host: str, port: int):
     """Returns the Agent Card for the AG2 Agent."""
     capabilities = AgentCapabilities(streaming=True)
     skill = AgentSkill(
-        id="slack_researcher",
-        name="Slack research agent",
+        id="github_issue_agent",
+        name="Github issue agent",
         description="Answer queries by searching through a given slack server",
-        tags=["research", "slack", "search", "report"],
+        tags=["git", "github", "issues"],
         examples=[
-            "Find me the most popular channels for discussing AI agents",
-            "Summarize what's been happening in the general channel lately",
+            "Find me the issues with the most comments in kubernetes/kubernetes",
+            "Show all issues assigned to me across any repository",
         ],
     )
     return AgentCard(
-        name="Web Research Agent",
-        description="Answer queries by searching through a given slack server",
+        name="Github issue agent",
+        description="Answer queries about Github issues",
         url=f"http://{host}:{port}/",
         version="1.0.0",
         default_input_modes=["text"],
@@ -107,7 +109,7 @@ class A2AEvent(Event):
             )
 
 
-class ResearchExecutor(AgentExecutor):
+class GithubExecutor(AgentExecutor):
     """
     A class to handle research execution for A2A Agent.
     """
@@ -115,21 +117,19 @@ class ResearchExecutor(AgentExecutor):
         messages: dict,
         settings: Settings,
         event_emitter: Event,
-        assistant_tool_map: dict[str, Callable],
-        toolkit: Toolkit):
+        toolkit: ToolCollection):
 
-        slack_agent = SlackAgent(
+        git_issue_agent = GitIssueAgent(
             config=settings,
             eventer=event_emitter,
-            assistant_tools=assistant_tool_map,
             mcp_toolkit=toolkit,
         )
-        result = await slack_agent.execute(messages)
+        result = await git_issue_agent.execute(messages)
         await event_emitter.emit_event(result, True)
 
     async def execute(self, context: RequestContext, event_queue: EventQueue):
         """
-        Executes the research task.
+        Executes the task.
 
         Args:
             context (RequestContext): The request context.
@@ -138,11 +138,16 @@ class ResearchExecutor(AgentExecutor):
         Returns:
             None
         """
-        user_token = context.call_context.user._user.access_token
+        if settings.GITHUB_TOKEN: 
+            user_token = settings.GITHUB_TOKEN
+        elif settings.JWKS_URI:
+            user_token = context.call_context.user._user.access_token
+        else: 
+            raise Exception("either JWKS_URI or GITHUB_TOKEN env var must be set")
         user_input = [context.get_user_input()]
         task = context.current_task
         if not task:
-            task = new_task(context.message)  # type: ignore
+            task = new_task(context.message)
             await event_queue.enqueue_event(task)
         task_updater = TaskUpdater(event_queue, task.id, task.context_id)
         event_emitter = A2AEvent(task_updater)
@@ -155,41 +160,41 @@ class ResearchExecutor(AgentExecutor):
                 }
             )
 
-        # no internal tools right now, will add later
-        assistant_tool_map = {}
-
         # Hook up MCP tools
-        toolkit = None
         try:
             if settings.MCP_URL:
                 logging.info("Connecting to MCP server at %s", settings.MCP_URL)
 
                 headers = await auth_headers(
                     user_token, 
+                    target_audience=settings.TARGET_AUDIENCE, 
                     target_scopes=settings.TARGET_SCOPES
                 )
 
-                async with streamablehttp_client(
-                    url=settings.MCP_URL,
-                    headers=headers
-                )  as (
-                    read_stream,
-                    write_stream,
-                    _,
-                ), ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    toolkit = await create_toolkit(
-                        session=session, use_mcp_resources=False
-                    )
-                    await self._run_agent(messages, settings,
-                        event_emitter,
-                        assistant_tool_map,
-                        toolkit,)
+                server_params = {
+                    "url": settings.MCP_URL,
+                    "transport": "streamable-http",
+                    "headers": headers,
+                }
+                with MCPServerAdapter(server_params, connect_timeout=60) as mcp_tools:
+                    # Keep only search and list issue-related tools.
+                    issue_tools = [
+                        tool
+                        for tool in mcp_tools
+                        if ("issue" in tool.name.lower() or "label" in tool.name.lower()) and 
+                        ("search" in tool.name.lower() or "list" in tool.name.lower())
+                    ]
+
+                    if not issue_tools:
+                        raise RuntimeError(
+                            "No issue-related tools found from the GitHub MCP server. "
+                            "Ensure your PAT scopes allow issue access and the server is reachable."
+                        )
+                    await self._run_agent(messages, settings, event_emitter, issue_tools)
             else:
                 await self._run_agent(messages, settings,
                     event_emitter,
-                    assistant_tool_map,
-                    toolkit,)
+                    None)
 
         except Exception as e:
             traceback.print_exc()
@@ -209,7 +214,7 @@ def run():
     agent_card = get_agent_card(host="0.0.0.0", port=settings.SERVICE_PORT)
 
     request_handler = DefaultRequestHandler(
-        agent_executor=ResearchExecutor(),
+        agent_executor=GithubExecutor(),
         task_store=InMemoryTaskStore(),
     )
 
@@ -219,10 +224,10 @@ def run():
     )
 
     app = server.build()  # this returns a Starlette app
-    # if one of the auth variables is set, create middleware
-    # if none of them are set, ignore all authorization headers. No token validation will be performed
-    if not settings.JWKS_URI is None:
+    if settings.JWKS_URI:
         logging.info("JWKS_URI is set - using JWT Validation middleware")
         app.add_middleware(AuthenticationMiddleware, backend=BearerAuthBackend(), on_error=on_auth_error)
+    elif settings.GITHUB_TOKEN is None:
+        logging.error("One of JWKS_URI or GITHUB_TOKEN must be set.")
 
     uvicorn.run(app, host="0.0.0.0", port=settings.SERVICE_PORT)
